@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   getTopLeftIndex,
   getTopMiddleIndex,
@@ -37,12 +37,11 @@ const App = () => {
     let newGrid = [];
     let newPopulation = 0;
     for (let i = 0; i < size * size; i++) {
-      if (Math.round(Math.random())) {
+      let newNode = Math.round(Math.random());
+      if (newNode) {
         newPopulation++;
-        newGrid[i] = { alive: true, livingNeighbors: 0 };
-      } else {
-        newGrid[i] = { alive: false, livingNeighbors: 0 };
       }
+      newGrid[i] = newNode;
     }
     setGrid(newGrid);
     setPopulation(newPopulation);
@@ -52,7 +51,7 @@ const App = () => {
   const generateEmptyGrid = () => {
     let newGrid = [];
     for (let i = 0; i < size * size; i++) {
-      newGrid[i] = { alive: false, livingNeighbors: 0 };
+      newGrid[i] = 0;
     }
     setRunning(false);
     setGrid(newGrid);
@@ -62,13 +61,13 @@ const App = () => {
   };
 
   const toggleNode = i => {
-    let updatedGrid = JSON.parse(JSON.stringify(grid));
-    if (updatedGrid[i].alive === true) {
-      updatedGrid[i].alive = false;
+    let updatedGrid = [...grid];
+    if (updatedGrid[i]) {
+      updatedGrid[i] = 0;
       setPopulation(population - 1);
     } else {
       setPopulation(population + 1);
-      updatedGrid[i].alive = true;
+      updatedGrid[i] = 1;
     }
     setGrid(updatedGrid);
   };
@@ -78,39 +77,31 @@ const App = () => {
   };
 
   const renderNextGeneration = () => {
-    let nextIteration = JSON.parse(JSON.stringify(emptyGrid));
+    let assessment = [...emptyGrid];
+    let nextIteration = [...emptyGrid];
     let nextPopulation = 0;
     for (let i = 0; i < grid.length; i++) {
-      if (grid[i].alive) {
-        nextIteration[getTopLeftIndex(i, size)].livingNeighbors++;
-        nextIteration[getTopMiddleIndex(i, size)].livingNeighbors++;
-        nextIteration[getTopRightIndex(i, size)].livingNeighbors++;
-        nextIteration[getMiddleLeftIndex(i, size)].livingNeighbors++;
-        nextIteration[getMiddleRightIndex(i, size)].livingNeighbors++;
-        nextIteration[getBottomLeftIndex(i, size)].livingNeighbors++;
-        nextIteration[getBottomMiddleIndex(i, size)].livingNeighbors++;
-        nextIteration[getBottomRightIndex(i, size)].livingNeighbors++;
+      if (grid[i]) {
+        assessment[getTopLeftIndex(i, size)]++;
+        assessment[getTopMiddleIndex(i, size)]++;
+        assessment[getTopRightIndex(i, size)]++;
+        assessment[getMiddleLeftIndex(i, size)]++;
+        assessment[getMiddleRightIndex(i, size)]++;
+        assessment[getBottomLeftIndex(i, size)]++;
+        assessment[getBottomMiddleIndex(i, size)]++;
+        assessment[getBottomRightIndex(i, size)]++;
       }
     }
     for (let i = 0; i < grid.length; i++) {
-      if (
-        grid[i].alive &&
-        (nextIteration[i].livingNeighbors === 2 ||
-          nextIteration[i].livingNeighbors === 3)
-      ) {
-        nextIteration[i].alive = true;
-        nextIteration[i].livingNeighbors = 0;
+      if (grid[i] && (assessment[i] === 2 || assessment[i] === 3)) {
+        nextIteration[i] = 1;
         nextPopulation++;
-      } else if (!grid[i].alive && nextIteration[i].livingNeighbors === 3) {
-        nextIteration[i].alive = true;
-        nextIteration[i].livingNeighbors = 0;
+      } else if (!grid[i] && assessment[i] === 3) {
+        nextIteration[i] = 1;
         nextPopulation++;
       }
     }
-    if (
-      nextPopulation === 0 ||
-      JSON.stringify(nextIteration) === JSON.stringify(grid)
-    ) {
+    if (nextPopulation === 0 || assessment.toString() === grid.toString()) {
       setRunning(false);
     }
     setGrid(nextIteration);
@@ -119,95 +110,165 @@ const App = () => {
   };
 
   const changeSize = num => {
-    // generateEmptyGrid();
     setSize(num);
   };
 
   return (
     <div className="app">
-      <header>
-        <h1>Conway's Game of Life (Cellular Automata)</h1>
-      </header>
-      <div className="content">
-        <div className="game">
-          <div className="game-panel">
-            <div className="game-panel display">
-              <div
-                style={{
-                  height: `${size * 10}px`,
-                  width: `${size * 10}px`
-                }}
-                className="grid"
-              >
-                {grid.map((node, i) => {
-                  if ((i + 1) % size === 0) {
-                    return (
-                      <canvas
-                        key={i}
-                        onClick={() => toggleNode(i)}
-                        className={node.alive ? "alive" : "dead"}
-                      >
-                        {"\n"}
-                      </canvas>
-                    );
-                  } else {
-                    return (
-                      <canvas
-                        key={i}
-                        onClick={() => toggleNode(i)}
-                        className={node.alive ? "alive" : "dead"}
-                      />
-                    );
-                  }
-                })}
-              </div>
-            </div>
-            <div className="control-panel">
-              <p>actions:</p>
-              <button disabled={running} onClick={generateRandomGrid}>
-                populate randomly
-              </button>
-              <button
-                disabled={population ? false : true}
-                onClick={toggleRunning}
-              >
-                {running ? "stop" : "start"}
-              </button>
-              <button disabled={running} onClick={renderNextGeneration}>
-                next step
-              </button>
-              <button disabled={running} onClick={generateEmptyGrid}>
-                clear grid
-              </button>
-            </div>
-          </div>
-          <div className="side-bar">
-            <div>
-              <p>generation: {generation}</p>
-              <p>population: {population}</p>
-            </div>
-            <div className="sizes-control-panel">
-              <p>sizes:</p>
-              <button disabled={running} onClick={() => changeSize(10)}>
-                10 x 10
-              </button>
-              <button disabled={running} onClick={() => changeSize(20)}>
-                20 x 20
-              </button>
-              <button disabled={running} onClick={() => changeSize(30)}>
-                30 x 30
-              </button>
-              <button disabled={running} onClick={() => changeSize(40)}>
-                40 x 40
-              </button>
-              <button disabled={running} onClick={() => changeSize(50)}>
-                50 x 50
-              </button>
-            </div>
-          </div>
+      <div className="game-panel">
+        <div>
+          <p className="bold">generation: {generation}</p>
         </div>
+        <div className="grid">
+          {grid.map((node, i) => {
+            if ((i + 1) % size === 0) {
+              return (
+                <canvas
+                  style={{
+                    height: `${500 / size}px`,
+                    width: `${500 / size}px`
+                  }}
+                  key={i}
+                  onClick={() => toggleNode(i)}
+                  className={node ? "alive" : "dead"}
+                >
+                  {"\n"}
+                </canvas>
+              );
+            } else {
+              return (
+                <canvas
+                  style={{
+                    height: `${500 / size}px`,
+                    width: `${500 / size}px`
+                  }}
+                  key={i}
+                  onClick={() => toggleNode(i)}
+                  className={node ? "alive" : "dead"}
+                />
+              );
+            }
+          })}
+        </div>
+      </div>
+      <div className="description-panel">
         <div className="description">
-          <p>hello</p>
+          <h1>Conway's Game of Life (Cellular Automata)</h1>
+          <p className="bold">{"\n\n"}RULES:</p>
+          <p>
+            <span className="bold">#1:</span> Any cell with fewer than 2 living
+            neighbors die via underpopulation or exposure
+          </p>
+          <p>
+            <span className="bold">#2:</span> Any cell with more than 3
+            neighbors dies via overpopulation or crowding
+          </p>
+          <p>
+            <span className="bold">#3:</span> Any live cell with 2 or 3 living
+            neighbors survives to the next generation
+          </p>
+          <p>
+            <span className="bold">#3:</span> Any dead cell with exactly 3
+            living neighbors will come to life
+          </p>
+        </div>
+        <div className="control-panel">
+          <div className="grid-control-panel">
+            <button
+              className={`button ${running ? "disabled" : ""}`}
+              disabled={running}
+              onClick={generateRandomGrid}
+            >
+              randomize
+            </button>
+            <button
+              className={`button ${population === 0 ? "disabled" : ""}`}
+              disabled={population ? false : true}
+              onClick={toggleRunning}
+            >
+              {running ? "stop" : "start"}
+            </button>
+            <button
+              className={`button ${
+                running || population === 0 ? "disabled" : ""
+              }`}
+              disabled={running || population === 0}
+              onClick={renderNextGeneration}
+            >
+              next step
+            </button>
+            <button
+              className={`button ${
+                running || population === 0 ? "disabled" : ""
+              }`}
+              disabled={running || population === 0}
+              onClick={generateEmptyGrid}
+            >
+              clear grid
+            </button>
+          </div>
+          <div className="sizes-control-panel">
+            <button
+              className={`button ${
+                size === 20
+                  ? running
+                    ? "disabled-active"
+                    : "active"
+                  : running
+                  ? "disabled"
+                  : ""
+              }`}
+              disabled={running}
+              onClick={() => changeSize(20)}
+            >
+              20 x 20
+            </button>
+            <button
+              className={`button ${
+                size === 30
+                  ? running
+                    ? "disabled-active"
+                    : "active"
+                  : running
+                  ? "disabled"
+                  : ""
+              }`}
+              disabled={running}
+              onClick={() => changeSize(30)}
+            >
+              30 x 30
+            </button>
+            <button
+              className={`button ${
+                size === 40
+                  ? running
+                    ? "disabled-active"
+                    : "active"
+                  : running
+                  ? "disabled"
+                  : ""
+              }`}
+              disabled={running}
+              onClick={() => changeSize(40)}
+            >
+              40 x 40
+            </button>
+            <button
+              className={`button ${
+                size === 50
+                  ? running
+                    ? "disabled-active"
+                    : "active"
+                  : running
+                  ? "disabled"
+                  : ""
+              }`}
+              disabled={running}
+              onClick={() => changeSize(50)}
+            >
+              50 x 50
+            </button>
+          </div>
         </div>
       </div>
     </div>
